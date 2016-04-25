@@ -26,12 +26,12 @@ feature_data_space = []
 #need to get listing data where it's at least one year of data. Just using Barcelona 2014 as default. Predict into 2015
 
 
-def shape_listing_data(listing_id, listing_all_data, testing_dates, training_dates, q):
+def shape_listing_data(listing_id, listing_all_data, features_to_use, testing_dates, training_dates, q):
 
     all_days = [datetime.datetime.strptime(entry, "%Y-%m-%d").date() for entry in listing_all_data['day'].values.tolist()]
     all_days = sorted(all_days)  #must sort days in order temporally to help with RNN and LSTM learning
 
-    testing_data = {listing_id: {"features": [], "classification" : []}}
+    testing_data = {int(listing_id): {"features": [], "classification" : []}}
     training_data = {"features": [], "classification" : []}
 
     for day in all_days:
@@ -42,8 +42,8 @@ def shape_listing_data(listing_id, listing_all_data, testing_dates, training_dat
             training_data['features'].append(day_features)
             training_data['classification'].append(classification)
         elif day <= testing_dates['end_date']:
-            testing_data[listing_id]['features'].append(day_features)
-            testing_data[listing_id]['classification'].append(classification)
+            testing_data[int(listing_id)]['features'].append(day_features)
+            testing_data[int(listing_id)]['classification'].append(classification)
 
     q.put((training_data, testing_data))
 
@@ -72,12 +72,12 @@ def fill_training_and_testing_data(all_data, features_to_use, testing_dates, tra
                 continue
         listing_chunks.append(small_chunk)
 
-    for id_chunk in listing_chunks[:1]:
+    for id_chunk in listing_chunks:
         q = Queue()
         process_list = []
 
         for listing_id in id_chunk:
-            p = Process(target = shape_listing_data, args = (listing_id, all_data.loc[(all_data['listing_id']==listing_id)], testing_dates, training_dates, q))
+            p = Process(target = shape_listing_data, args = (listing_id, all_data.loc[(all_data['listing_id']==listing_id)], features_to_use, testing_dates, training_dates, q))
             process_list.append(p)
             p.start()
 
@@ -143,8 +143,8 @@ def results_averaging(final_results_dict):
                         results_store[method][result_type].append(full_results[result_type])
                     else: #if the result was None or 0
                     #often because there weren't many occupancies or falses in a test set
-                        print "didn't have good data here"
-                        print listing_ids, ", ", method
+                        #print "didn't have good data here"
+                        #print listing_ids, ", ", method
                         pass
 
     #get the average
@@ -166,8 +166,7 @@ def fullLocation(features_to_use, experiment_name, model_name):
     end_date = datetime.date(2016, 1, 29)
 
     #three city, single listing training and prediction test
-    #for location_id in [0, 1, 19]:
-    for location_id in [1]:
+    for location_id in [0, 1, 19]:
         print "On location ", location_id
         start_time = time.time()
         #get data
@@ -220,7 +219,7 @@ def fullLocation(features_to_use, experiment_name, model_name):
 def point_of_view_experiments(experiment, features_to_use, model_name):
     global point_of_view
     #defaulting to full location now just to see
-    for this_point in [1, 3, 7, 30, 60, 90]: #one week, one month, 2 months, 3 months
+    for this_point in [0, 1, 3, 7, 30, 60, 90]: #one week, one month, 2 months, 3 months
     #for this_point in [1]:
         point_of_view = this_point
         #experiment = "full_location_point_of_view_" + str(this_point) + "_min_max"
